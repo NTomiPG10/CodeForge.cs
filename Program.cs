@@ -1,66 +1,43 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using MySql.Data.MySqlClient;
+using MySqlConnector;
 
-namespace sqlconnect
+namespace RealEstates_database
 {
     internal class Program
     {
-        static void AddDiak(MySqlConnection cutasi, string nev, int szulev)
-        {
-            string insertString = "INSERT INTO diak(nev, szulev) VALUES(@nev, @szulev)";
-            MySqlCommand command = new MySqlCommand(insertString, cutasi);
-            command.Parameters.AddWithValue("@nev", nev);
-            command.Parameters.AddWithValue("@szulev", szulev);
-            int sorok = command.ExecuteNonQuery();
-            Console.WriteLine($"{sorok} sor érintett!");
-        }
-
-        static List<(string, int)> fetchDiakok(MySqlConnection cutasi)
-        {
-            string fetchString = "SELECT * FROM diak";
-            MySqlCommand command = new MySqlCommand(fetchString, cutasi);
-            MySqlDataReader reader = command.ExecuteReader();
-            List<(string, int)> diakok = new List<(string, int)>();
-            while (reader.Read())
-            {
-                string nev = reader.GetString("nev");
-                int szulev = reader.GetInt32("szulev");
-                diakok.Add((nev, szulev));
-            }
-            return diakok;
-        }
-
         static void Main(string[] args)
         {
-            string connectionString = "server=localhost;database=teszt;username=root;password=mysql";
-            using (MySqlConnection conn = new MySqlConnection(connectionString))
+            var serverKapscolat = new MySqlConnectionStringBuilder { Server = "127.0.0.1", Database = "ingatlan2", UserID = "root", Password = "" };
+            MySqlConnection kapcsolat = new MySqlConnection(serverKapscolat.ConnectionString);
+            kapcsolat.Open();
+            var lekerdezes = kapcsolat.CreateCommand();
+            Console.Write("K�rem az emeletet: ");
+            string emelet = Console.ReadLine();
+            lekerdezes.CommandText = $"Select avg(area) from realestates where floors = {emelet}";
+            var olvaso = lekerdezes.ExecuteReader();
+            while (olvaso.Read())
             {
-                try
-                {
-                    conn.Open();
-                    Console.WriteLine("Sikeres kapcsolódás!");
-                    AddDiak(conn, "Utasi Zalán Zoltán", 2008);
-                    AddDiak(conn, "Tóth Kornél", 2007);
-                    AddDiak(conn, "PZA-GND", 1812);
+                Console.WriteLine($"A {emelet} emeleti ingatlanok �tlagter�lete: {olvaso.GetDouble(0):0.00} m2");
 
-                    List<(string Nev, int Szulev)> diakok = fetchDiakok(conn);
-                    foreach (var d in diakok)
-                    {
-                        Console.WriteLine($"Diák neve: {d.Nev}");
-                        Console.WriteLine($"Diák születési éve: {d.Szulev}");
-                    }
-                }
-                catch (Exception ex)
-                {
-
-                    Console.WriteLine(ex.Message);
-                }
             }
+            olvaso.Close();
+
+            lekerdezes.CommandText = "$SELECT name FROM sellers WHERE id in (SELECT DISTINCT sellerid FROM realestates) ORDER BY name DESC;";
+            olvaso = lekerdezes.ExecuteReader();
+            while (olvaso.Read())
+            {
+                Console.WriteLine($"{olvaso.GetString(0)}");
+
+            }
+            olvaso.Close();
+
+            kapcsolat.Close();
+
+
 
             Console.ReadKey();
         }
